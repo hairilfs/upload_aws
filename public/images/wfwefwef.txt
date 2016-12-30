@@ -1,0 +1,1 @@
+insert into db_sdpa_bl.user(id_user) select nip from db_sdpa_bl.guru;
