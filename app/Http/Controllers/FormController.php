@@ -5,11 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use App\Http\Requests;
+// use Illuminate\Support\Facades\Storage;
 
 use Image;
 
 class FormController extends Controller
 {
+    public function __construct()
+    {
+        $this->s3 = \Storage::disk('s3');
+    }
+
     public function index()
     {
     	return view('upload');
@@ -23,22 +29,77 @@ class FormController extends Controller
     		$new_title = $request->title.'.'.$request->file('pic')->getClientOriginalExtension();
 
     		$image = file_get_contents($request->file('pic'));
+
+            // save to local
     		$request->file('pic')->move($new_path, $new_title);
 
+            // crop image
     		$img_z = Image::make($image)->resize(300, 300, function($constraint) {
     			$constraint->aspectRatio();
     		});
-    		
-    		$s3 = \Storage::disk('s3');
-    		$s3->put('cms_laravel/'.$new_title, $img_z->stream()->__toString());
+
+            // save to s3
+    		$this->s3->put('cms_laravel/'.$new_title, $img_z->stream()->__toString());
 
     	}
 
     	return redirect('/upload');
     }
 
-    public function check()
+    public function check($filename='default.jpg')
     {
-    	return 'Here';
+        $exist = $this->s3->exists('cms_laravel/'.$filename);
+        if ($exist) 
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    public function get($filename='default.jpg')
+    {
+        if($this->check($filename))
+        {
+            $get = $this->s3->url('cms_laravel/'.$filename);
+            return '<img src='.$get.'>';
+        }
+        else
+        {
+            return "Oops, file not found!";
+        }
+
+    }
+
+    public function delete($filename='default.jpg')
+    {
+        if($this->check($filename))
+        {
+            $delete = $this->s3->delete('cms_laravel/'.$filename);
+
+            if ($delete)
+            {
+                return "File deleted!";
+            }
+            else
+            {
+                return "Oops, the file can not be deleted.";
+            }
+
+        }
+        else
+        {
+            return "Oops, file not found!";
+        }
+    }
+
+    public function delete_multiple()
+    {
+        $dir = 'https://s3-ap-southeast-1.amazonaws.com/'.env('S3_BUCKET');
+        // exit($dir);
+        $files = $this->s3->files($dir);
+        var_dump($files);
     }
 }
