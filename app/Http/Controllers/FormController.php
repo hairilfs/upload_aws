@@ -14,6 +14,7 @@ class FormController extends Controller
     public function __construct()
     {
         $this->s3 = \Storage::disk('s3');
+        $this->local = \Storage::disk('local');
     }
 
     public function index()
@@ -39,7 +40,7 @@ class FormController extends Controller
     		});
 
             // save to s3
-    		$this->s3->put('cms_laravel/'.$new_title, $img_z->stream()->__toString());
+    		$this->s3->put('cms_laravel/randomcid/'.$new_title, $img_z->stream()->__toString());
 
     	}
 
@@ -95,11 +96,30 @@ class FormController extends Controller
         }
     }
 
-    public function delete_multiple()
+    public function delete_multiple($cid='defaultcid')
     {
-        $dir = 'https://s3-ap-southeast-1.amazonaws.com/'.env('S3_BUCKET');
-        // exit($dir);
-        $files = $this->s3->files($dir);
-        var_dump($files);
+        $delete = false;
+        $files = [];
+        $get_dir = $this->s3->listContents('cms_laravel/'.$cid, true);
+        foreach ($get_dir as $dir) {
+            if ($dir['type'] == 'file') 
+            {
+                $files[] = $dir['path'];
+            }
+        }
+
+        if (count($files) >= 1) 
+        {
+            $delete = $this->s3->delete($files);
+        }
+
+        if ($delete)
+        {
+            return "Files deleted!";
+        }
+        else
+        {
+            return "Oops, files can not be deleted.";
+        }
     }
 }

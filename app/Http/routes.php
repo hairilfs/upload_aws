@@ -20,4 +20,4 @@ Route::post('/upload', 'FormController@upload');
 Route::get('/check/{filename?}', 'FormController@check');
 Route::get('/get/{filename?}', 'FormController@get');
 Route::get('/delete/{filename?}', 'FormController@delete');
-Route::get('/delete_multiple', 'FormController@delete_multiple');
+Route::get('/delete_multiple/{cid?}', 'FormController@delete_multiple');
