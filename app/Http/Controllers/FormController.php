@@ -19,7 +19,12 @@ class FormController extends Controller
 
     public function index()
     {
-    	return view('upload');
+        $files = $this->list_contents('cms_laravel/');
+        $data = [
+            'files'     => $files,
+        ];
+
+    	return view('upload', $data);
     }
 
     public function upload(Request $request)
@@ -27,12 +32,13 @@ class FormController extends Controller
     	if ($request->hasFile('pic')) 
     	{
     		$new_path = public_path('images/');
-    		$new_title = $request->title.'.'.$request->file('pic')->getClientOriginalExtension();
+    		$title = $request->file('pic')->getClientOriginalName();
 
     		$image = file_get_contents($request->file('pic'));
 
             // save to local
-    		$request->file('pic')->move($new_path, $new_title);
+    		$request->file('pic')->move($new_path, $title);
+            $this->local->put($title, $image);
 
             // crop image
     		$img_z = Image::make($image)->resize(300, 300, function($constraint) {
@@ -40,7 +46,7 @@ class FormController extends Controller
     		});
 
             // save to s3
-    		$this->s3->put('cms_laravel/randomcid/'.$new_title, $img_z->stream()->__toString());
+    		$this->s3->put('cms_laravel/randomcid/'.$title, $img_z->stream()->__toString());
 
     	}
 
@@ -49,7 +55,7 @@ class FormController extends Controller
 
     public function check($filename='default.jpg')
     {
-        $exist = $this->s3->exists('cms_laravel/'.$filename);
+        $exist = $this->s3->exists('cms_laravel/randomcid/'.$filename);
         if ($exist) 
         {
             return 1;
@@ -64,7 +70,7 @@ class FormController extends Controller
     {
         if($this->check($filename))
         {
-            $get = $this->s3->url('cms_laravel/'.$filename);
+            $get = $this->s3->url('cms_laravel/randomcid/'.$filename);
             return '<img src='.$get.'>';
         }
         else
@@ -76,12 +82,14 @@ class FormController extends Controller
 
     public function delete($filename='default.jpg')
     {
+        $filename = urldecode($filename);
         if($this->check($filename))
         {
-            $delete = $this->s3->delete('cms_laravel/'.$filename);
+            $delete = $this->s3->delete($filename);
 
             if ($delete)
             {
+                // $this->local->delete($filename);
                 return "File deleted!";
             }
             else
@@ -96,20 +104,15 @@ class FormController extends Controller
         }
     }
 
-    public function delete_multiple($cid='defaultcid')
+    public function delete_multiple($cid='randomcid')
     {
+        $cid = urldecode($cid);
         $delete = false;
-        $files = [];
-        $get_dir = $this->s3->listContents('cms_laravel/'.$cid, true);
-        foreach ($get_dir as $dir) {
-            if ($dir['type'] == 'file') 
-            {
-                $files[] = $dir['path'];
-            }
-        }
+        $files = $this->list_contents($cid);
 
         if (count($files) >= 1) 
         {
+            // $this->local->deleteDirectory($cid);
             $delete = $this->s3->delete($files);
         }
 
@@ -121,5 +124,19 @@ class FormController extends Controller
         {
             return "Oops, files can not be deleted.";
         }
+    }
+
+    public function list_contents($cid='randomcid')
+    {
+        $files = [];
+        $get_dir = $this->s3->listContents($cid, true);
+        foreach ($get_dir as $dir) {
+            if ($dir['type'] == 'file') 
+            {
+                $files[] = $dir['path'];
+            }
+        }
+
+        return $files;
     }
 }

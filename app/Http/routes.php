@@ -15,9 +15,21 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// GET
 Route::get('/upload', 'FormController@index');
-Route::post('/upload', 'FormController@upload');
 Route::get('/check/{filename?}', 'FormController@check');
 Route::get('/get/{filename?}', 'FormController@get');
-Route::get('/delete/{filename?}', 'FormController@delete');
-Route::get('/delete_multiple/{cid?}', 'FormController@delete_multiple');
+Route::get('/images/{filename?}', function($filename='default.jpg') {
+	$path = storage_path('app/'.$filename);
+	if (file_exists($path)) 
+	{ 
+    	return Response::download($path);
+    }
+});
+
+// POST
+Route::post('/upload', 'FormController@upload');
+
+// DELETE
+Route::delete('/delete/{filename?}', 'FormController@delete');
+Route::delete('/delete_multiple/{cid?}', 'FormController@delete_multiple');
