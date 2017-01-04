@@ -33,3 +33,4 @@ Route::post('/upload', 'FormController@upload');
 // DELETE
 Route::delete('/delete/{filename?}', 'FormController@delete');
 Route::delete('/delete_multiple/{cid?}', 'FormController@delete_multiple');
+Route::delete('/delete_all', 'FormController@delete_all');

@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use App\Http\Requests;
-// use Illuminate\Support\Facades\Storage;
 
 use Image;
+use File;
 
 class FormController extends Controller
 {
@@ -31,14 +31,14 @@ class FormController extends Controller
     {
     	if ($request->hasFile('pic')) 
     	{
-    		$new_path = public_path('images/');
-    		$title = $request->file('pic')->getClientOriginalName();
+            $random_cid = str_random(32);
+    		$new_path = public_path('images/'.$random_cid);
+    		$title = str_replace(' ', '-', $request->file('pic')->getClientOriginalName());
 
     		$image = file_get_contents($request->file('pic'));
 
             // save to local
     		$request->file('pic')->move($new_path, $title);
-            $this->local->put($title, $image);
 
             // crop image
     		$img_z = Image::make($image)->resize(300, 300, function($constraint) {
@@ -46,7 +46,7 @@ class FormController extends Controller
     		});
 
             // save to s3
-    		$this->s3->put('cms_laravel/randomcid/'.$title, $img_z->stream()->__toString());
+    		$this->s3->put("cms_laravel/{$random_cid}/".$title, $img_z->stream()->__toString());
 
     	}
 
@@ -55,7 +55,7 @@ class FormController extends Controller
 
     public function check($filename='default.jpg')
     {
-        $exist = $this->s3->exists('cms_laravel/randomcid/'.$filename);
+        $exist = $this->s3->exists($filename);
         if ($exist) 
         {
             return 1;
@@ -70,7 +70,7 @@ class FormController extends Controller
     {
         if($this->check($filename))
         {
-            $get = $this->s3->url('cms_laravel/randomcid/'.$filename);
+            $get = $this->s3->url('cms_laravel/random_cid/'.$filename);
             return '<img src='.$get.'>';
         }
         else
@@ -82,15 +82,23 @@ class FormController extends Controller
 
     public function delete($filename='default.jpg')
     {
-        $filename = urldecode($filename);
+        $filename = str_replace('--x--', '/', $filename);
+        // exit($filename);
         if($this->check($filename))
         {
             $delete = $this->s3->delete($filename);
 
             if ($delete)
             {
-                // $this->local->delete($filename);
-                return "File deleted!";
+                $delete_folder = explode('/', $filename);
+                array_pop($delete_folder);
+                $delete_folder = implode('/', $delete_folder);
+                $delete_folder = str_replace("cms_laravel", "images", $delete_folder);
+
+                File::deleteDirectory($delete_folder);
+                // File::delete(str_replace("cms_laravel", "images", $filename));
+                echo "File deleted!";
+                return redirect('/upload');
             }
             else
             {
@@ -102,9 +110,11 @@ class FormController extends Controller
         {
             return "Oops, file not found!";
         }
+
+
     }
 
-    public function delete_multiple($cid='randomcid')
+    public function delete_multiple($cid='random_cid')
     {
         $cid = urldecode($cid);
         $delete = false;
@@ -126,7 +136,25 @@ class FormController extends Controller
         }
     }
 
-    public function list_contents($cid='randomcid')
+    public function delete_all()
+    {
+        $delete = false;
+
+        $delete = File::deleteDirectory('images');
+        $delete = $this->s3->deleteDirectory('cms_laravel');
+        // exit();
+
+        if ($delete)
+        {
+            return "Files deleted!";
+        }
+        else
+        {
+            return "Oops, files can not be deleted.";
+        }
+    }
+
+    public function list_contents($cid='random_cid')
     {
         $files = [];
         $get_dir = $this->s3->listContents($cid, true);

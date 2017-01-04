@@ -1,4 +1,0 @@
-<br />
-<b>Warning</b>:  include(detil_jadwal.php?idjdw=J112017): failed to open stream: Result too large in <b>C:\xampp\htdocs\te-A-pkD\print_excel.php</b> on line <b>9</b><br />
-<br />
-<b>Warning</b>:  include(): Failed opening 'detil_jadwal.php?idjdw=J112017' for inclusion (include_path='.;C:\xampp\php\PEAR') in <b>C:\xampp\htdocs\te-A-pkD\print_excel.php</b> on line <b>9</b><br />
